@@ -209,6 +209,13 @@ export default function({
                 })
             }
 
+            if (host === "instagram" && r.bestAudio && audioFormat === "best") {
+                responseType = "redirect";
+                params = { url: Array.isArray(r.urls) ? r.urls[1] : r.urls };
+                audioFormat = r.bestAudio;
+                break;
+            }
+
             let processType = "audio";
             let copy = false;
 
