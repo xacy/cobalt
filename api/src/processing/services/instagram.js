@@ -55,6 +55,38 @@ const getObjectFromEntries = (name, data) => {
     return obj && JSON.parse(obj);
 }
 
+const decodeXml = (value) => value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+
+export function extractDashUrls(manifest) {
+    const streams = {};
+
+    for (const adaptation of manifest?.matchAll(/<AdaptationSet\b([^>]*)>([\s\S]*?)<\/AdaptationSet>/gi) || []) {
+        const [, adaptationAttributes, representations] = adaptation;
+        const adaptationType = adaptationAttributes.match(/(?:contentType|mimeType)="(audio|video)(?:\/[^\"]+)?"/i)?.[1];
+
+        for (const representation of representations.matchAll(/<Representation\b([^>]*)>([\s\S]*?)<\/Representation>/gi)) {
+            const [, representationAttributes, contents] = representation;
+            const type = adaptationType
+                || representationAttributes.match(/(?:contentType|mimeType)="(audio|video)(?:\/[^\"]+)?"/i)?.[1];
+            const url = contents.match(/<BaseURL(?:\s[^>]*)?>([\s\S]*?)<\/BaseURL>/i)?.[1]?.trim();
+            const bandwidth = Number(representationAttributes.match(/bandwidth="(\d+)"/i)?.[1]) || 0;
+
+            if (type && url && (!streams[type] || bandwidth > streams[type].bandwidth)) {
+                streams[type] = { url: decodeXml(url), bandwidth };
+            }
+        }
+    }
+
+    if (streams.video && streams.audio) {
+        return [streams.video.url, streams.audio.url];
+    }
+}
+
 export default function instagram(obj) {
     const dispatcher = obj.dispatcher;
 
@@ -212,8 +244,38 @@ export default function instagram(obj) {
         };
     }
 
-    async function requestGQL(id, cookie) {
+    async function requestGQL(id, mediaId, cookie) {
         const { headers, body } = await getGQLParams(id, cookie);
+
+        if (mediaId) {
+            const req = await fetch('https://www.instagram.com/api/graphql', {
+                method: 'POST',
+                dispatcher,
+                headers: {
+                    ...embedHeaders,
+                    ...headers,
+                    cookie,
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'X-FB-Friendly-Name': 'PolarisLoggedOutDesktopWWWPostRootContentQuery',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': `https://www.instagram.com/p/${id}/`,
+                },
+                body: new URLSearchParams({
+                    ...body,
+                    fb_api_caller_class: 'RelayModern',
+                    fb_api_req_friendly_name: 'PolarisLoggedOutDesktopWWWPostRootContentQuery',
+                    variables: JSON.stringify({ media_id: String(mediaId).split('_')[0] }),
+                    server_timestamps: true,
+                    doc_id: '27130156389949648'
+                }).toString()
+            });
+
+            const product = await req.json()
+                .then(r => r?.data?.xig_polaris_media?.if_not_gated_logged_out)
+                .catch(() => null);
+
+            if (product) return product;
+        }
 
         const req = await fetch('https://www.instagram.com/graphql/query', {
             method: 'POST',
@@ -342,8 +404,9 @@ export default function instagram(obj) {
         }
 
         if (shortcodeMedia?.video_url) {
+            const dashUrls = extractDashUrls(shortcodeMedia.video_dash_manifest);
             return {
-                urls: shortcodeMedia.video_url,
+                urls: dashUrls || shortcodeMedia.video_url,
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
@@ -399,8 +462,9 @@ export default function instagram(obj) {
             if (picker.length) return { picker }
         } else if (data.video_versions) {
             const video = data.video_versions.reduce((a, b) => a.width * a.height < b.width * b.height ? b : a)
+            const dashUrls = extractDashUrls(data.video_dash_manifest);
             return {
-                urls: video.url,
+                urls: dashUrls || video.url,
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
@@ -436,13 +500,13 @@ export default function instagram(obj) {
             if (media_id && !hasData(data)) data = await requestMobileApi(media_id);
             if (media_id && cookie && !hasData(data)) data = await requestMobileApi(media_id, { cookie });
 
+            // web app graphql api (no cookie, cookie)
+            if (!hasData(data)) data = await requestGQL(id, media_id);
+            if (!hasData(data) && cookie) data = await requestGQL(id, media_id, cookie);
+
             // html embed (no cookie, cookie)
             if (!hasData(data)) data = await requestHTML(id);
             if (!hasData(data) && cookie) data = await requestHTML(id, cookie);
-
-            // web app graphql api (no cookie, cookie)
-            if (!hasData(data)) data = await requestGQL(id);
-            if (!hasData(data) && cookie) data = await requestGQL(id, cookie);
         } catch {}
 
         if (!hasData(data)) {

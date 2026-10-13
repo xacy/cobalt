@@ -183,8 +183,15 @@ export default function({
                     params = { type: "proxy" };
                     break;
 
-                case "facebook":
                 case "instagram":
+                    if (Array.isArray(r.urls)) {
+                        params = { type: "merge" };
+                    } else {
+                        responseType = "redirect";
+                    }
+                    break;
+
+                case "facebook":
                 case "tumblr":
                 case "pinterest":
                 case "streamable":
