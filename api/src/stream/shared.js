@@ -11,6 +11,9 @@ const serviceHeaders = {
     bilibili: {
         referer: 'https://www.bilibili.com/'
     },
+    instagram: {
+        referer: 'https://www.instagram.com/'
+    },
     youtube: {
         accept: '*/*',
         origin: 'https://www.youtube.com',
