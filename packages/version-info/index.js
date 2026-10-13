@@ -27,6 +27,10 @@ const readGit = (filename) => {
 }
 
 export const getCommit = async () => {
+    if (process.env.RENDER_GIT_COMMIT) {
+        return process.env.RENDER_GIT_COMMIT;
+    }
+
     return (await readGit('.git/logs/HEAD'))
             ?.split('\n')
             ?.filter(String)
@@ -43,12 +47,20 @@ export const getBranch = async () => {
         return process.env.WORKERS_CI_BRANCH;
     }
 
+    if (process.env.RENDER_GIT_BRANCH) {
+        return process.env.RENDER_GIT_BRANCH;
+    }
+
     return (await readGit('.git/HEAD'))
             ?.replace(/^ref: refs\/heads\//, '')
             ?.trim();
 }
 
 export const getRemote = async () => {
+    if (process.env.RENDER_GIT_REPO_SLUG) {
+        return process.env.RENDER_GIT_REPO_SLUG;
+    }
+
     let remote = (await readGit('.git/config'))
                     ?.split('\n')
                     ?.find(line => line.includes('url = '))
