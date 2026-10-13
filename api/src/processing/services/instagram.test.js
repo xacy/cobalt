@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { env } from "../../config.js";
+import matchAction from "../match-action.js";
 import { extractDashUrls } from "./instagram.js";
 
 test("extracts the highest-bandwidth Instagram DASH video and audio streams", () => {
@@ -26,4 +28,31 @@ test("does not replace the progressive URL when DASH audio is missing", () => {
     </AdaptationSet></Period></MPD>`;
 
     assert.equal(extractDashUrls(manifest), undefined);
+});
+
+test("proxies the progressive Instagram MP4 when audio is requested", () => {
+    env.apiURL = "http://localhost:9000";
+    const result = matchAction({
+        r: {
+            urls: ["https://cdn.example/video-dash.mp4", "https://cdn.example/audio-dash.m4a"],
+            audioSource: "https://cdn.example/progressive.mp4",
+            bestAudio: "mp4",
+            audioFilename: "instagram_test_audio",
+        },
+        host: "instagram",
+        audioFormat: "best",
+        isAudioOnly: true,
+        isAudioMuted: false,
+        disableMetadata: true,
+        filenameStyle: "basic",
+        convertGif: false,
+        requestIP: "127.0.0.1",
+        audioBitrate: "64",
+        alwaysProxy: false,
+        localProcessing: "forced",
+    });
+
+    assert.equal(result.body.status, "local-processing");
+    assert.equal(result.body.type, "proxy");
+    assert.equal(result.body.output.filename, "instagram_test_audio.mp4");
 });

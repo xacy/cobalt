@@ -407,7 +407,8 @@ export default function instagram(obj) {
             const dashUrls = extractDashUrls(shortcodeMedia.video_dash_manifest);
             return {
                 urls: dashUrls || shortcodeMedia.video_url,
-                bestAudio: dashUrls ? "m4a" : undefined,
+                audioSource: shortcodeMedia.video_url,
+                bestAudio: "mp4",
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
@@ -466,7 +467,8 @@ export default function instagram(obj) {
             const dashUrls = extractDashUrls(data.video_dash_manifest);
             return {
                 urls: dashUrls || video.url,
-                bestAudio: dashUrls ? "m4a" : undefined,
+                audioSource: video.url,
+                bestAudio: "mp4",
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
