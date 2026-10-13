@@ -497,16 +497,16 @@ export default function instagram(obj) {
             if (!media_id && token) media_id = await getMediaId(id, { token });
             if (!media_id && cookie) media_id = await getMediaId(id, { cookie });
 
+            // web app graphql api (no cookie, cookie)
+            if (media_id) data = await requestGQL(id, media_id);
+            if (!hasData(data) && cookie) data = await requestGQL(id, media_id, cookie);
+
             // mobile api (bearer)
-            if (media_id && token) data = await requestMobileApi(media_id, { token });
+            if (media_id && token && !hasData(data)) data = await requestMobileApi(media_id, { token });
 
             // mobile api (no cookie, cookie)
             if (media_id && !hasData(data)) data = await requestMobileApi(media_id);
             if (media_id && cookie && !hasData(data)) data = await requestMobileApi(media_id, { cookie });
-
-            // web app graphql api (no cookie, cookie)
-            if (!hasData(data)) data = await requestGQL(id, media_id);
-            if (!hasData(data) && cookie) data = await requestGQL(id, media_id, cookie);
 
             // html embed (no cookie, cookie)
             if (!hasData(data)) data = await requestHTML(id);
