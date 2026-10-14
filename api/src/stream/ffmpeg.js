@@ -89,12 +89,11 @@ const render = async (res, streamInfo, ffargs, estimateMultiplier) => {
         process = spawn(...getCommand(args), {
             windowsHide: true,
             stdio: [
-                'inherit', 'inherit', 'pipe',
-                'pipe'
+                'inherit', 'pipe', 'pipe'
             ],
         });
 
-        const [,, errorOutput, muxOutput] = process.stdio;
+        const [, muxOutput, errorOutput] = process.stdio;
         let errorText = '';
         let outputBytes = 0;
 
@@ -190,7 +189,7 @@ const remux = async (streamInfo, res) => {
         args.push(...convertMetadataToFFmpeg(streamInfo.metadata));
     }
 
-    args.push('-f', format === 'mkv' ? 'matroska' : format, 'pipe:3');
+    args.push('-f', format === 'mkv' ? 'matroska' : format, 'pipe:1');
 
     await render(res, streamInfo, args);
 }
@@ -221,7 +220,7 @@ const convertAudio = async (streamInfo, res) => {
     args.push(
         '-f',
         streamInfo.audioFormat === 'm4a' ? 'mp4' : streamInfo.audioFormat,
-        'pipe:3',
+        'pipe:1',
     );
 
     await render(
@@ -240,7 +239,7 @@ const convertGif = async (streamInfo, res) => {
         'scale=-1:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse',
         '-loop', '0',
 
-        '-f', 'gif', 'pipe:3',
+        '-f', 'gif', 'pipe:1',
     ];
 
     await render(
