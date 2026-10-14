@@ -30,13 +30,13 @@ test("does not replace the progressive URL when DASH audio is missing", () => {
     assert.equal(extractDashUrls(manifest), undefined);
 });
 
-test("proxies the progressive Instagram MP4 when audio is requested", () => {
+test("proxies the native Instagram audio track when available", () => {
     env.apiURL = "http://localhost:9000";
     const result = matchAction({
         r: {
             urls: ["https://cdn.example/video-dash.mp4", "https://cdn.example/audio-dash.m4a"],
-            audioSource: "https://cdn.example/progressive.mp4",
-            bestAudio: "mp4",
+            audioSource: "https://cdn.example/audio-dash.m4a",
+            bestAudio: "m4a",
             audioFilename: "instagram_test_audio",
             sourceMetadata: {
                 description: "Ingredientes: 200 g de harina",
@@ -59,7 +59,7 @@ test("proxies the progressive Instagram MP4 when audio is requested", () => {
 
     assert.equal(result.body.status, "local-processing");
     assert.equal(result.body.type, "proxy");
-    assert.equal(result.body.output.filename, "instagram_test_audio.mp4");
+    assert.equal(result.body.output.filename, "instagram_test_audio.m4a");
     assert.deepEqual(result.body.metadata, {
         description: "Ingredientes: 200 g de harina",
         author: "@cocina",
