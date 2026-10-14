@@ -57,6 +57,15 @@ const getCommand = (args) => {
 export const ffmpegFailure = (stderr, code, signal) => {
     const upstream = stderr.match(/Server returned \d{3}[^\r\n]*/)?.[0];
     if (upstream) return upstream;
+    const detail = stderr
+        .replace(/https?:\/\/\S+/g, '[url]')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .slice(-2)
+        .join(' | ')
+        .slice(0, 500);
+    if (detail) return detail;
     if (signal) return `FFmpeg exited with signal ${signal}`;
     if (code !== null && code !== undefined) return `FFmpeg exited with code ${code}`;
     return 'FFmpeg failed to start';

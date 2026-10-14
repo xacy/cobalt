@@ -12,6 +12,14 @@ test("reports the FFmpeg exit signal when stderr has no useful reason", () => {
     assert.equal(ffmpegFailure("", null, "SIGKILL"), "FFmpeg exited with signal SIGKILL");
 });
 
+test("reports FFmpeg details without exposing signed URLs", () => {
+    const stderr = "https://signed.example/media?token=secret: Invalid data found when processing input\n";
+    assert.equal(
+        ffmpegFailure(stderr, 234, null),
+        "[url] Invalid data found when processing input",
+    );
+});
+
 test("reports the FFmpeg exit code when stderr has no useful reason", () => {
     assert.equal(ffmpegFailure("", 1, null), "FFmpeg exited with code 1");
 });
