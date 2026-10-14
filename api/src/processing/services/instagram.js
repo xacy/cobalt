@@ -253,6 +253,7 @@ export default function instagram(obj) {
 
     async function requestGQL(id, mediaId, cookie) {
         const { headers, body } = await getGQLParams(id, cookie);
+        let product;
 
         if (mediaId) {
             const req = await fetch('https://www.instagram.com/api/graphql', {
@@ -277,11 +278,11 @@ export default function instagram(obj) {
                 }).toString()
             });
 
-            const product = await req.json()
+            product = await req.json()
                 .then(r => r?.data?.xig_polaris_media?.if_not_gated_logged_out)
                 .catch(() => null);
 
-            if (product) return product;
+            if (hasDashAudio(product)) return product;
         }
 
         const req = await fetch('https://www.instagram.com/graphql/query', {
@@ -309,11 +310,15 @@ export default function instagram(obj) {
             }).toString()
         });
 
-        return {
-            gql_data: await req.json()
-                        .then(r => r.data)
-                        .catch(() => null)
-        };
+        const gqlData = await req.json()
+            .then(r => r.data)
+            .catch(() => null);
+
+        if (hasDashAudio({ gql_data: gqlData })) {
+            return { gql_data: gqlData };
+        }
+
+        return product || { gql_data: gqlData };
     }
 
     async function getErrorContext(id) {
