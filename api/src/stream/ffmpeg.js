@@ -167,7 +167,7 @@ const convertAudio = async (streamInfo, res) => {
         args.push('-vbr', 'off');
     }
 
-    if (streamInfo.audioFormat === 'mp4a') {
+    if (streamInfo.audioFormat === 'm4a') {
         args.push('-movflags', 'frag_keyframe+empty_moov');
     }
 
@@ -177,7 +177,7 @@ const convertAudio = async (streamInfo, res) => {
 
     args.push(
         '-f',
-        streamInfo.audioFormat === 'm4a' ? 'ipod' : streamInfo.audioFormat,
+        streamInfo.audioFormat === 'm4a' ? 'mp4' : streamInfo.audioFormat,
         'pipe:3',
     );
 
