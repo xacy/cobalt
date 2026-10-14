@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { env } from "../../config.js";
 import matchAction from "../match-action.js";
-import { extractDashUrls } from "./instagram.js";
+import { extractDashUrls, hasDashAudio } from "./instagram.js";
 
 test("extracts the highest-bandwidth Instagram DASH video and audio streams", () => {
     const manifest = `<MPD><Period>
@@ -28,6 +28,17 @@ test("does not replace the progressive URL when DASH audio is missing", () => {
     </AdaptationSet></Period></MPD>`;
 
     assert.equal(extractDashUrls(manifest), undefined);
+});
+
+test("detects DASH audio in web and mobile Instagram responses", () => {
+    const manifest = `<MPD><Period>
+        <AdaptationSet contentType="video"><Representation><BaseURL>video.mp4</BaseURL></Representation></AdaptationSet>
+        <AdaptationSet contentType="audio"><Representation><BaseURL>audio.m4a</BaseURL></Representation></AdaptationSet>
+    </Period></MPD>`;
+
+    assert.equal(hasDashAudio({ gql_data: { xdt_shortcode_media: { video_dash_manifest: manifest } } }), true);
+    assert.equal(hasDashAudio({ video_dash_manifest: manifest }), true);
+    assert.equal(hasDashAudio({ video_versions: [{ url: "video.mp4" }] }), false);
 });
 
 test("proxies the native Instagram audio track when available", () => {

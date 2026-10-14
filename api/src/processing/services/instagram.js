@@ -87,6 +87,13 @@ export function extractDashUrls(manifest) {
     }
 }
 
+export function hasDashAudio(data) {
+    const media = data?.gql_data?.shortcode_media
+        || data?.gql_data?.xdt_shortcode_media
+        || data;
+    return Boolean(extractDashUrls(media?.video_dash_manifest));
+}
+
 export default function instagram(obj) {
     const dispatcher = obj.dispatcher;
 
@@ -520,6 +527,16 @@ export default function instagram(obj) {
             // web app graphql api (no cookie, cookie)
             if (media_id) data = await requestGQL(id, media_id);
             if (!hasData(data) && cookie) data = await requestGQL(id, media_id, cookie);
+
+            if (media_id && hasData(data) && !hasDashAudio(data)) {
+                let mobile;
+                if (token) mobile = await requestMobileApi(media_id, { token });
+                if (!hasDashAudio(mobile)) mobile = await requestMobileApi(media_id);
+                if (!hasDashAudio(mobile) && cookie) {
+                    mobile = await requestMobileApi(media_id, { cookie });
+                }
+                if (hasDashAudio(mobile)) data = mobile;
+            }
 
             // mobile api (bearer)
             if (media_id && token && !hasData(data)) data = await requestMobileApi(media_id, { token });
