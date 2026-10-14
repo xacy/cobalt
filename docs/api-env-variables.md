@@ -69,6 +69,7 @@ this document is not final and will expand over time. feel free to improve it!
 | YOUTUBE_ALLOW_BETTER_AUDIO       | `1`                      |
 | ENABLE_DEPRECATED_YOUTUBE_HLS    | `key`                    |
 | YOUTUBE_PLAYER_ID                | `abcdefff`               |
+| INSTAGRAM_FALLBACK_URL           | `https://example.com/`   |
 
 [*view details*](#service-specific)
 

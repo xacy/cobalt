@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { env } from "../../config.js";
 import matchAction from "../match-action.js";
-import { extractDashUrls, hasDashAudio } from "./instagram.js";
+import { extractDashUrls, hasDashAudio, isTrustedInstagramMediaURL } from "./instagram.js";
 
 test("extracts the highest-bandwidth Instagram DASH video and audio streams", () => {
     const manifest = `<MPD><Period>
@@ -39,6 +39,13 @@ test("detects DASH audio in web and mobile Instagram responses", () => {
     assert.equal(hasDashAudio({ gql_data: { xdt_shortcode_media: { video_dash_manifest: manifest } } }), true);
     assert.equal(hasDashAudio({ video_dash_manifest: manifest }), true);
     assert.equal(hasDashAudio({ video_versions: [{ url: "video.mp4" }] }), false);
+});
+
+test("only accepts trusted Instagram media fallback redirects", () => {
+    assert.equal(isTrustedInstagramMediaURL("https://instagram.example.fbcdn.net/video.mp4"), true);
+    assert.equal(isTrustedInstagramMediaURL("https://cdninstagram.com/video.mp4"), true);
+    assert.equal(isTrustedInstagramMediaURL("http://instagram.example.fbcdn.net/video.mp4"), false);
+    assert.equal(isTrustedInstagramMediaURL("https://fbcdn.net.evil.example/video.mp4"), false);
 });
 
 test("proxies the native Instagram audio track when available", () => {

@@ -123,6 +123,8 @@ export const loadEnvs = (env = process.env) => {
         ytAllowBetterAudio: env.YOUTUBE_ALLOW_BETTER_AUDIO !== "0",
         ytPlayerIds: env.YOUTUBE_PLAYER_ID?.split(',')?.map(p => p.trim()),
 
+        instagramFallbackURL: env.INSTAGRAM_FALLBACK_URL,
+
         // "never" | "session" | "always"
         forceLocalProcessing: env.FORCE_LOCAL_PROCESSING ?? "never",
 

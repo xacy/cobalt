@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { resolveRedirectingURL } from "../url.js";
-import { genericUserAgent } from "../../config.js";
+import { env, genericUserAgent } from "../../config.js";
 import { createStream } from "../../stream/manage.js";
 import { getCookie, updateCookie } from "../cookie/manager.js";
 
@@ -94,6 +94,18 @@ export function hasDashAudio(data) {
     return Boolean(extractDashUrls(media?.video_dash_manifest));
 }
 
+export function isTrustedInstagramMediaURL(value) {
+    try {
+        const url = new URL(value);
+        return url.protocol === "https:"
+            && ["fbcdn.net", "cdninstagram.com"].some(domain =>
+                url.hostname === domain || url.hostname.endsWith(`.${domain}`)
+            );
+    } catch {
+        return false;
+    }
+}
+
 export default function instagram(obj) {
     const dispatcher = obj.dispatcher;
 
@@ -172,6 +184,19 @@ export default function instagram(obj) {
         }).then(r => r.json()).catch(() => {});
 
         return mediaInfo?.items?.[0];
+    }
+
+    async function requestFallbackMedia(id) {
+        if (!env.instagramFallbackURL) return;
+
+        const response = await fetch(new URL(`/reel/${id}`, env.instagramFallbackURL), {
+            headers: { "user-agent": "Discordbot/2.0" },
+            redirect: "manual",
+            dispatcher,
+        });
+        const location = response.headers.get("location");
+
+        if (location && isTrustedInstagramMediaURL(location)) return location;
     }
 
     async function requestHTML(id, cookie) {
@@ -517,7 +542,7 @@ export default function instagram(obj) {
         const hasData = (data) => data
                                     && data.gql_data !== null
                                     && data?.gql_data?.xdt_shortcode_media !== null;
-        let data, result;
+        let data, result, fallbackAudioURL;
         try {
             const cookie = getCookie('instagram');
 
@@ -543,6 +568,10 @@ export default function instagram(obj) {
                 if (hasDashAudio(mobile)) data = mobile;
             }
 
+            if (hasData(data) && !hasDashAudio(data)) {
+                fallbackAudioURL = await requestFallbackMedia(id);
+            }
+
             // mobile api (bearer)
             if (media_id && token && !hasData(data)) data = await requestMobileApi(media_id, { token });
 
@@ -566,6 +595,10 @@ export default function instagram(obj) {
         }
 
         if (result) {
+            if (fallbackAudioURL) {
+                result.audioSource = fallbackAudioURL;
+                result.bestAudio = "mp4";
+            }
             return {
                 ...result,
                 sourceMetadata: data?.gql_data
