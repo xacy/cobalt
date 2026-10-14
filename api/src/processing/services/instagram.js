@@ -408,6 +408,7 @@ export default function instagram(obj) {
             return {
                 urls: dashUrls || shortcodeMedia.video_url,
                 audioSource: shortcodeMedia.video_url,
+                bestAudio: "mp4",
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
@@ -487,6 +488,7 @@ export default function instagram(obj) {
             return {
                 urls: dashUrls || video.url,
                 audioSource: video.url,
+                bestAudio: "mp4",
                 filename: `instagram_${id}.mp4`,
                 audioFilename: `instagram_${id}_audio`
             }
