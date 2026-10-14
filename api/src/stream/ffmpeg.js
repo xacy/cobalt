@@ -5,7 +5,7 @@ import { create as contentDisposition } from "content-disposition-header";
 import { env } from "../config.js";
 import { destroyInternalStream } from "./manage.js";
 import { hlsExceptions } from "../processing/service-config.js";
-import { closeResponse, pipe, estimateTunnelLength, estimateAudioMultiplier } from "./shared.js";
+import { closeResponse, estimateTunnelLength, estimateAudioMultiplier } from "./shared.js";
 
 const metadataTags = new Set([
     "album",
@@ -54,9 +54,12 @@ const getCommand = (args) => {
     return [ffmpeg, args]
 }
 
-export const ffmpegFailure = (stderr) => {
+export const ffmpegFailure = (stderr, code, signal) => {
     const upstream = stderr.match(/Server returned \d{3}[^\r\n]*/)?.[0];
-    return upstream || 'FFmpeg produced no output';
+    if (upstream) return upstream;
+    if (signal) return `FFmpeg exited with signal ${signal}`;
+    if (code !== null && code !== undefined) return `FFmpeg exited with code ${code}`;
+    return 'FFmpeg failed to start';
 }
 
 const render = async (res, streamInfo, ffargs, estimateMultiplier) => {
@@ -88,12 +91,10 @@ const render = async (res, streamInfo, ffargs, estimateMultiplier) => {
 
         errorOutput.on('data', data => errorText = `${errorText}${data}`.slice(-4000));
         muxOutput.on('data', data => outputBytes += data.length);
-        muxOutput.on('end', () => {
-            if (outputBytes === 0 && !res.headersSent) {
-                const failure = ffmpegFailure(errorText);
-                console.error(`[ffmpeg] ${streamInfo.service}: ${failure}`);
-                res.status(502).type('text/plain').write(failure);
-            }
+        muxOutput.on('error', shutdown);
+        res.on('error', shutdown);
+        res.on('close', () => {
+            if (!res.writableEnded) shutdown();
         });
 
         res.setHeader('Connection', 'keep-alive');
@@ -104,9 +105,25 @@ const render = async (res, streamInfo, ffargs, estimateMultiplier) => {
             await estimateTunnelLength(streamInfo, estimateMultiplier)
         );
 
-        pipe(muxOutput, res, shutdown);
+        muxOutput.pipe(res, { end: false });
 
-        process.on('close', shutdown);
+        process.on('error', error => {
+            errorText = `${errorText}\n${error.message}`;
+        });
+        process.on('close', (code, signal) => {
+            if (outputBytes === 0) {
+                const failure = ffmpegFailure(errorText, code, signal);
+                console.error(`[ffmpeg] ${streamInfo.service}: ${failure}`);
+                if (!res.headersSent) {
+                    res.status(502).type('text/plain').send(failure);
+                } else {
+                    res.end();
+                }
+            } else if (!res.writableEnded) {
+                res.end();
+            }
+            urls.map(destroyInternalStream);
+        });
         res.on('finish', shutdown);
     } catch {
         shutdown();
