@@ -422,6 +422,26 @@ export default function instagram(obj) {
         }
     }
 
+    function extractOldMetadata(data) {
+        const media = data?.gql_data?.shortcode_media || data?.gql_data?.xdt_shortcode_media;
+        const description = media?.edge_media_to_caption?.edges?.[0]?.node?.text;
+        const username = media?.owner?.username;
+        return {
+            description,
+            author: username ? `@${username}` : media?.owner?.full_name,
+            thumbnail: media?.display_url,
+        };
+    }
+
+    function extractNewMetadata(data) {
+        const username = data?.user?.username;
+        return {
+            description: data?.caption?.text,
+            author: username ? `@${username}` : data?.user?.full_name,
+            thumbnail: data?.image_versions2?.candidates?.[0]?.url,
+        };
+    }
+
     function extractNewPost(data, id, alwaysProxy) {
         const carousel = data.carousel_media;
         if (carousel) {
@@ -521,7 +541,14 @@ export default function instagram(obj) {
             result = extractNewPost(data, id, alwaysProxy)
         }
 
-        if (result) return result;
+        if (result) {
+            return {
+                ...result,
+                sourceMetadata: data?.gql_data
+                    ? extractOldMetadata(data)
+                    : extractNewMetadata(data),
+            };
+        }
         return { error: "fetch.empty" }
     }
 

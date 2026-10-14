@@ -37,6 +37,11 @@ test("proxies the progressive Instagram MP4 when audio is requested", () => {
             urls: ["https://cdn.example/video-dash.mp4", "https://cdn.example/audio-dash.m4a"],
             audioSource: "https://cdn.example/progressive.mp4",
             audioFilename: "instagram_test_audio",
+            sourceMetadata: {
+                description: "Ingredientes: 200 g de harina",
+                author: "@cocina",
+                thumbnail: "https://cdn.example/cover.jpg",
+            },
         },
         host: "instagram",
         audioFormat: "best",
@@ -54,4 +59,9 @@ test("proxies the progressive Instagram MP4 when audio is requested", () => {
     assert.equal(result.body.status, "local-processing");
     assert.equal(result.body.type, "audio");
     assert.equal(result.body.output.filename, "instagram_test_audio.m4a");
+    assert.deepEqual(result.body.metadata, {
+        description: "Ingredientes: 200 g de harina",
+        author: "@cocina",
+        thumbnail: "https://cdn.example/cover.jpg",
+    });
 });
