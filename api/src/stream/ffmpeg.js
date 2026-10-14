@@ -54,6 +54,11 @@ const getCommand = (args) => {
     return [ffmpeg, args]
 }
 
+export const ffmpegFailure = (stderr) => {
+    const upstream = stderr.match(/Server returned \d{3}[^\r\n]*/)?.[0];
+    return upstream || 'FFmpeg produced no output';
+}
+
 const render = async (res, streamInfo, ffargs, estimateMultiplier) => {
     let process;
     const urls = Array.isArray(streamInfo.urls) ? streamInfo.urls : [streamInfo.urls];
@@ -65,19 +70,31 @@ const render = async (res, streamInfo, ffargs, estimateMultiplier) => {
 
     try {
         const args = [
-            '-loglevel', '-8',
+            '-loglevel', 'error',
             ...ffargs,
         ];
 
         process = spawn(...getCommand(args), {
             windowsHide: true,
             stdio: [
-                'inherit', 'inherit', 'inherit',
+                'inherit', 'inherit', 'pipe',
                 'pipe'
             ],
         });
 
-        const [,,, muxOutput] = process.stdio;
+        const [,, errorOutput, muxOutput] = process.stdio;
+        let errorText = '';
+        let outputBytes = 0;
+
+        errorOutput.on('data', data => errorText = `${errorText}${data}`.slice(-4000));
+        muxOutput.on('data', data => outputBytes += data.length);
+        muxOutput.on('end', () => {
+            if (outputBytes === 0 && !res.headersSent) {
+                const failure = ffmpegFailure(errorText);
+                console.error(`[ffmpeg] ${streamInfo.service}: ${failure}`);
+                res.status(502).type('text/plain').write(failure);
+            }
+        });
 
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('Content-Disposition', contentDisposition(streamInfo.filename));
